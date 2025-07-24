@@ -52,6 +52,16 @@
         .slide-image {
             display: block;
             object-fit: contain;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            user-drag: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none;
         }
 
         /* Mobile portrait mode - fill width, allow vertical scrolling */
@@ -120,7 +130,7 @@
 
         .artwork-title {
             position: fixed;
-            bottom: 20px;
+            top: 20px;
             left: 20px;
             color: white;
             font-size: 16px;
@@ -368,6 +378,30 @@
                 
                 // Prevent context menu on long press
                 this.track.addEventListener('contextmenu', e => e.preventDefault());
+                
+                // Disable image saving and right-click protection
+                document.addEventListener('contextmenu', e => e.preventDefault());
+                document.addEventListener('dragstart', e => e.preventDefault());
+                document.addEventListener('selectstart', e => e.preventDefault());
+                
+                // Disable keyboard shortcuts for saving/copying
+                document.addEventListener('keydown', (e) => {
+                    // Disable F12, Ctrl+Shift+I, Ctrl+Shift+C, Ctrl+U, Ctrl+S, Ctrl+A, Ctrl+C
+                    if (e.key === 'F12' || 
+                        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C')) ||
+                        (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S' || 
+                                      e.key === 'a' || e.key === 'A' || e.key === 'c' || e.key === 'C'))) {
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+                
+                // Disable print screen (limited effectiveness)
+                document.addEventListener('keyup', (e) => {
+                    if (e.key === 'PrintScreen') {
+                        navigator.clipboard.writeText('');
+                    }
+                });
                 
                 // Prevent iOS bounce/rubber band effect
                 document.addEventListener('touchmove', (e) => {
