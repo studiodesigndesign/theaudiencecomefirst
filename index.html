@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery Swiper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .gallery-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .gallery-track {
+            display: flex;
+            height: 100%;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform;
+        }
+
+        .gallery-slide {
+            flex: 0 0 100vw;
+            height: 100vh;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide-image {
+            display: block;
+            object-fit: contain;
+        }
+
+        /* Mobile portrait mode - fill width, allow vertical scrolling */
+        @media (orientation: portrait) and (max-width: 768px) {
+            .slide-image {
+                width: 100vw;
+                height: auto;
+                max-width: 100vw;
+                max-height: none;
+            }
+            
+            .gallery-slide {
+                align-items: flex-start;
+                justify-content: center;
+                padding-top: env(safe-area-inset-top, 0);
+            }
+        }
+
+        /* Mobile landscape mode - fit height, allow horizontal scrolling */
+        @media (orientation: landscape) and (max-width: 768px) {
+            .slide-image {
+                width: auto;
+                height: 100vh;
+                max-width: none;
+                max-height: 100vh;
+            }
+            
+            .gallery-slide {
+                overflow-x: auto;
+                align-items: center;
+                justify-content: flex-start;
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+        }
+
+        /* Desktop - always center and fit to screen */
+        @media (min-width: 769px) {
+            .slide-image {
+                width: auto;
+                height: 100vh;
+                max-width: 100vw;
+                max-height: 100vh;
+            }
+            
+            .gallery-slide {
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .nav-dot.active {
+            background: #fff;
+            transform: scale(1.3);
+        }
+
+        .slide-counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            z-index: 1000;
+        }
+
+        .instructions {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.8);
+            text-align: center;
+            font-size: 12px;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .instructions.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Smooth scrollbars for landscape mode */
+        .gallery-slide::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        .gallery-slide::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .gallery-slide::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+
+        /* Touch feedback */
+        .gallery-track.dragging {
+            transition: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="gallery-container">
+        <div class="gallery-track" id="galleryTrack">
+            <!-- Images will be loaded here -->
+        </div>
+        
+        <div class="slide-counter" id="slideCounter">1 / 1</div>
+        
+        <div class="navigation" id="navigation">
+            <!-- Dots will be generated here -->
+        </div>
+        
+        <div class="instructions" id="instructions">
+            Swipe left/right to navigate • Rotate device to scroll images
+        </div>
+        
+        <div class="loading" id="loading">Loading gallery...</div>
+    </div>
+
+    <script>
+        class GallerySwiper {
+            constructor() {
+                this.currentSlide = 0;
+                this.totalSlides = 0;
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+                this.touchEndX = 0;
+                this.touchEndY = 0;
+                this.isDragging = false;
+                this.dragOffset = 0;
+                this.minSwipeDistance = 50;
+                
+                this.track = document.getElementById('galleryTrack');
+                this.counter = document.getElementById('slideCounter');
+                this.navigation = document.getElementById('navigation');
+                this.instructions = document.getElementById('instructions');
+                this.loading = document.getElementById('loading');
+                
+                // Sample images - replace with your actual image URLs
+                this.images = [
+                    'assets/TACF01.jpeg',
+                    'assets/TACF02.jpeg',
+                    'assets/TACF03.jpeg',
+                    'assets/TACF04.jpeg',
+                    'assets/TACF05.jpeg',
+                    'assets/TACF06.jpeg',
+                    'assets/TACF07.jpeg',
+                    'assets/TACF08.jpeg',
+                    'assets/TACF09.jpeg',
+                    'assets/TACF10.jpeg',
+                    'assets/TACF11.jpeg',
+                    'assets/TACF12.jpeg',
+                    'assets/TACF13.jpeg',
+                    'assets/TACF14.jpeg',
+                    'assets/TACF15.jpeg',
+                    'assets/TACF16.jpeg',
+                    'assets/TACF17.jpeg',
+                    'assets/TACF18.jpeg',
+                    'assets/TACF19.jpeg',
+                    'assets/TACF20.jpeg',
+                    'assets/TACF21.jpeg',
+                    'assets/TACF22.jpeg',
+                    'assets/TACF23.jpeg',
+                    'assets/TACF24.jpeg'
+                ];
+                
+                this.init();
+            }
+            
+            async init() {
+                await this.loadImages();
+                this.setupEventListeners();
+                this.updateUI();
+                this.hideInstructionsAfterDelay();
+            }
+            
+            async loadImages() {
+                this.totalSlides = this.images.length;
+                
+                // Pre-load images for smooth experience
+                const imagePromises = this.images.map(src => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = src;
+                    });
+                });
+                
+                try {
+                    const loadedImages = await Promise.all(imagePromises);
+                    
+                    // Create slides
+                    loadedImages.forEach((img, index) => {
+                        const slide = document.createElement('div');
+                        slide.className = 'gallery-slide';
+                        
+                        const slideImg = document.createElement('img');
+                        slideImg.src = img.src;
+                        slideImg.className = 'slide-image';
+                        slideImg.alt = `Gallery image ${index + 1}`;
+                        slideImg.draggable = false;
+                        
+                        slide.appendChild(slideImg);
+                        this.track.appendChild(slide);
+                    });
+                    
+                    // Create navigation dots
+                    for (let i = 0; i < this.totalSlides; i++) {
+                        const dot = document.createElement('div');
+                        dot.className = 'nav-dot';
+                        if (i === 0) dot.classList.add('active');
+                        dot.addEventListener('click', () => this.goToSlide(i));
+                        this.navigation.appendChild(dot);
+                    }
+                    
+                    this.loading.style.display = 'none';
+                } catch (error) {
+                    console.error('Error loading images:', error);
+                    this.loading.textContent = 'Error loading gallery';
+                }
+            }
+            
+            setupEventListeners() {
+                // Touch events
+                this.track.addEventListener('touchstart', this.handleTouchStart.bind(this));
+                this.track.addEventListener('touchmove', this.handleTouchMove.bind(this));
+                this.track.addEventListener('touchend', this.handleTouchEnd.bind(this));
+                
+                // Mouse events for desktop
+                this.track.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                this.track.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                this.track.addEventListener('mouseup', this.handleMouseUp.bind(this));
+                this.track.addEventListener('mouseleave', this.handleMouseUp.bind(this));
+                
+                // Keyboard navigation
+                document.addEventListener('keydown', this.handleKeyDown.bind(this));
+                
+                // Prevent context menu on long press
+                this.track.addEventListener('contextmenu', e => e.preventDefault());
+                
+                // Hide instructions on first interaction
+                this.track.addEventListener('touchstart', this.hideInstructions.bind(this), { once: true });
+                this.track.addEventListener('mousedown', this.hideInstructions.bind(this), { once: true });
+            }
+            
+            handleTouchStart(e) {
+                this.touchStartX = e.touches[0].clientX;
+                this.touchStartY = e.touches[0].clientY;
+                this.isDragging = true;
+                this.track.classList.add('dragging');
+            }
+            
+            handleTouchMove(e) {
+                if (!this.isDragging) return;
+                
+                this.touchEndX = e.touches[0].clientX;
+                this.touchEndY = e.touches[0].clientY;
+                
+                const deltaX = this.touchEndX - this.touchStartX;
+                const deltaY = Math.abs(this.touchEndY - this.touchStartY);
+                
+                // Only handle horizontal swipes if vertical movement is minimal
+                if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > 10) {
+                    e.preventDefault();
+                    this.dragOffset = deltaX;
+                    const translateX = -(this.currentSlide * 100) + (deltaX / window.innerWidth * 100);
+                    this.track.style.transform = `translateX(${translateX}vw)`;
+                }
+            }
+            
+            handleTouchEnd(e) {
+                if (!this.isDragging) return;
+                
+                this.isDragging = false;
+                this.track.classList.remove('dragging');
+                
+                const deltaX = this.touchEndX - this.touchStartX;
+                const deltaY = Math.abs(this.touchEndY - this.touchStartY);
+                
+                // Only trigger swipe if horizontal movement dominates
+                if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > this.minSwipeDistance) {
+                    if (deltaX > 0 && this.currentSlide > 0) {
+                        this.goToSlide(this.currentSlide - 1);
+                    } else if (deltaX < 0 && this.currentSlide < this.totalSlides - 1) {
+                        this.goToSlide(this.currentSlide + 1);
+                    } else {
+                        this.updateTrackPosition();
+                    }
+                } else {
+                    this.updateTrackPosition();
+                }
+                
+                this.dragOffset = 0;
+            }
+            
+            handleMouseDown(e) {
+                this.touchStartX = e.clientX;
+                this.touchStartY = e.clientY;
+                this.isDragging = true;
+                this.track.classList.add('dragging');
+                e.preventDefault();
+            }
+            
+            handleMouseMove(e) {
+                if (!this.isDragging) return;
+                
+                this.touchEndX = e.clientX;
+                this.touchEndY = e.clientY;
+                
+                const deltaX = this.touchEndX - this.touchStartX;
+                const deltaY = Math.abs(this.touchEndY - this.touchStartY);
+                
+                if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > 10) {
+                    this.dragOffset = deltaX;
+                    const translateX = -(this.currentSlide * 100) + (deltaX / window.innerWidth * 100);
+                    this.track.style.transform = `translateX(${translateX}vw)`;
+                }
+            }
+            
+            handleMouseUp(e) {
+                if (!this.isDragging) return;
+                
+                this.isDragging = false;
+                this.track.classList.remove('dragging');
+                
+                const deltaX = this.touchEndX - this.touchStartX;
+                const deltaY = Math.abs(this.touchEndY - this.touchStartY);
+                
+                if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > this.minSwipeDistance) {
+                    if (deltaX > 0 && this.currentSlide > 0) {
+                        this.goToSlide(this.currentSlide - 1);
+                    } else if (deltaX < 0 && this.currentSlide < this.totalSlides - 1) {
+                        this.goToSlide(this.currentSlide + 1);
+                    } else {
+                        this.updateTrackPosition();
+                    }
+                } else {
+                    this.updateTrackPosition();
+                }
+                
+                this.dragOffset = 0;
+            }
+            
+            handleKeyDown(e) {
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        this.previousSlide();
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        this.nextSlide();
+                        break;
+                }
+            }
+            
+            goToSlide(index) {
+                if (index < 0 || index >= this.totalSlides) return;
+                
+                this.currentSlide = index;
+                this.updateTrackPosition();
+                this.updateUI();
+            }
+            
+            nextSlide() {
+                if (this.currentSlide < this.totalSlides - 1) {
+                    this.goToSlide(this.currentSlide + 1);
+                }
+            }
+            
+            previousSlide() {
+                if (this.currentSlide > 0) {
+                    this.goToSlide(this.currentSlide - 1);
+                }
+            }
+            
+            updateTrackPosition() {
+                const translateX = -(this.currentSlide * 100);
+                this.track.style.transform = `translateX(${translateX}vw)`;
+            }
+            
+            updateUI() {
+                // Update counter
+                this.counter.textContent = `${this.currentSlide + 1} / ${this.totalSlides}`;
+                
+                // Update navigation dots
+                const dots = this.navigation.querySelectorAll('.nav-dot');
+                dots.forEach((dot, index) => {
+                    dot.classList.toggle('active', index === this.currentSlide);
+                });
+            }
+            
+            hideInstructions() {
+                this.instructions.classList.add('fade-out');
+            }
+            
+            hideInstructionsAfterDelay() {
+                setTimeout(() => {
+                    this.hideInstructions();
+                }, 3000);
+            }
+        }
+        
+        // Initialize gallery when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new GallerySwiper();
+        });
+        
+        // Handle orientation changes
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                window.scrollTo(0, 0);
+            }, 100);
+        });
+    </script>
+</body>
+</html>
