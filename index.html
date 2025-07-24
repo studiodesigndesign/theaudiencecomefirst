@@ -130,7 +130,7 @@
 
         .artwork-title {
             position: fixed;
-            bottom: 70px;
+            bottom: 20px;
             left: 20px;
             color: white;
             font-size: 16px;
@@ -270,7 +270,7 @@
                 
                 // Sample images - replace with your actual image URLs
                 this.images = [
-                    'assets/TACF00.jpg',
+                    'assets/TACF00.jpeg',
                     'assets/TACF01.jpeg',
                     'assets/TACF02.jpeg',
                     'assets/TACF03.jpeg',
@@ -295,6 +295,7 @@
                     'assets/TACF22.jpeg',
                     'assets/TACF23.jpeg',
                     'assets/TACF24.jpeg'
+
                 ];
                 
                 this.init();
@@ -401,6 +402,24 @@
                         navigator.clipboard.writeText('');
                     }
                 });
+                
+                // Blur content when developer tools might be open
+                let devtools = {open: false, orientation: null};
+                const threshold = 160;
+                setInterval(() => {
+                    if (window.outerHeight - window.innerHeight > threshold || 
+                        window.outerWidth - window.innerWidth > threshold) {
+                        if (!devtools.open) {
+                            devtools.open = true;
+                            document.body.style.filter = 'blur(5px)';
+                        }
+                    } else {
+                        if (devtools.open) {
+                            devtools.open = false;
+                            document.body.style.filter = 'none';
+                        }
+                    }
+                }, 500);
                 
                 // Prevent iOS bounce/rubber band effect
                 document.addEventListener('touchmove', (e) => {
