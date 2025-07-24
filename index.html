@@ -112,6 +112,22 @@
             backdrop-filter: blur(10px);
         }
 
+        .artwork-title {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            pointer-events: none;
+            user-select: none;
+        }
+
         .nav-dot {
             width: 8px;
             height: 8px;
@@ -201,6 +217,8 @@
         
         <div class="slide-counter" id="slideCounter">1 / 1</div>
         
+        <div class="artwork-title">The Audience Comes First (2024) by Yeo Ker Siang</div>
+        
         <div class="navigation" id="navigation">
             <!-- Dots will be generated here -->
         </div>
@@ -224,6 +242,9 @@
                 this.isDragging = false;
                 this.dragOffset = 0;
                 this.minSwipeDistance = 50;
+                this.autoPlayTimer = null;
+                this.autoPlayInterval = 8000; // 8 seconds
+                this.isUserInteracting = false;
                 
                 this.track = document.getElementById('galleryTrack');
                 this.counter = document.getElementById('slideCounter');
@@ -234,7 +255,7 @@
                 // Sample images - replace with your actual image URLs
                 this.images = [
                     'assets/TACF00.jpg',
-                       'assets/TACF01.jpeg',
+                    'assets/TACF01.jpeg',
                     'assets/TACF02.jpeg',
                     'assets/TACF03.jpeg',
                     'assets/TACF04.jpeg',
@@ -258,6 +279,7 @@
                     'assets/TACF22.jpeg',
                     'assets/TACF23.jpeg',
                     'assets/TACF24.jpeg'
+
                 ];
                 
                 this.init();
@@ -268,6 +290,7 @@
                 this.setupEventListeners();
                 this.updateUI();
                 this.hideInstructionsAfterDelay();
+                this.startAutoPlay();
             }
             
             async loadImages() {
@@ -349,6 +372,7 @@
             }
             
             handleTouchStart(e) {
+                this.pauseAutoPlay();
                 this.touchStartX = e.touches[0].clientX;
                 this.touchStartY = e.touches[0].clientY;
                 this.touchEndX = this.touchStartX;
@@ -408,9 +432,13 @@
                 this.touchStartY = 0;
                 this.touchEndX = 0;
                 this.touchEndY = 0;
+                
+                // Resume autoplay after user interaction
+                this.resumeAutoPlay();
             }
             
             handleMouseDown(e) {
+                this.pauseAutoPlay();
                 this.touchStartX = e.clientX;
                 this.touchStartY = e.clientY;
                 this.isDragging = true;
@@ -456,6 +484,7 @@
                 }
                 
                 this.dragOffset = 0;
+                this.resumeAutoPlay();
             }
             
             handleKeyDown(e) {
