@@ -293,7 +293,6 @@
                     'assets/TACF22.jpeg',
                     'assets/TACF23.jpeg',
                     'assets/TACF24.jpeg'
-
                 ];
                 
                 this.init();
@@ -333,6 +332,16 @@
                         slideImg.className = 'slide-image';
                         slideImg.alt = `Gallery image ${index + 1}`;
                         slideImg.draggable = false;
+                        
+                        // Make first image clickable to open website
+                        if (index === 0) {
+                            slideImg.style.cursor = 'pointer';
+                            slideImg.style.pointerEvents = 'auto';
+                            slideImg.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                window.open('https://studiodesign.design', '_blank', 'noopener,noreferrer');
+                            });
+                        }
                         
                         slide.appendChild(slideImg);
                         this.track.appendChild(slide);
