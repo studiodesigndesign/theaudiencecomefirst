@@ -217,7 +217,7 @@
         
         <div class="slide-counter" id="slideCounter">1 / 1</div>
         
-        <div class="artwork-title">The Audience Comes First (2024) by Yeo Ker Siang</div>
+        <div class="artwork-title">The Audience Comes First (2024)</div>
         
         <div class="navigation" id="navigation">
             <!-- Dots will be generated here -->
@@ -254,7 +254,7 @@
                 
                 // Sample images - replace with your actual image URLs
                 this.images = [
-                    'assets/TACF00.jpg',
+                    'assets/TACF00.jpeg',
                     'assets/TACF01.jpeg',
                     'assets/TACF02.jpeg',
                     'assets/TACF03.jpeg',
@@ -279,7 +279,6 @@
                     'assets/TACF22.jpeg',
                     'assets/TACF23.jpeg',
                     'assets/TACF24.jpeg'
-
                 ];
                 
                 this.init();
@@ -329,7 +328,11 @@
                         const dot = document.createElement('div');
                         dot.className = 'nav-dot';
                         if (i === 0) dot.classList.add('active');
-                        dot.addEventListener('click', () => this.goToSlide(i));
+                        dot.addEventListener('click', () => {
+                            this.pauseAutoPlay();
+                            this.goToSlide(i);
+                            this.resumeAutoPlay();
+                        });
                         this.navigation.appendChild(dot);
                     }
                     
@@ -365,6 +368,15 @@
                         e.preventDefault();
                     }
                 }, { passive: false });
+                
+                // Pause autoplay on any user interaction
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        this.pauseAutoPlay();
+                    } else {
+                        this.resumeAutoPlay();
+                    }
+                });
                 
                 // Hide instructions on first interaction
                 this.track.addEventListener('touchstart', this.hideInstructions.bind(this), { once: true });
@@ -544,6 +556,47 @@
                 setTimeout(() => {
                     this.hideInstructions();
                 }, 3000);
+            }
+            
+            startAutoPlay() {
+                // Clear any existing timer first
+                if (this.autoPlayTimer) {
+                    clearInterval(this.autoPlayTimer);
+                }
+                
+                this.autoPlayTimer = setInterval(() => {
+                    // Only auto-advance if user is not actively interacting
+                    if (!this.isDragging && !this.isUserInteracting) {
+                        this.nextSlideAuto();
+                    }
+                }, this.autoPlayInterval);
+            }
+            
+            pauseAutoPlay() {
+                if (this.autoPlayTimer) {
+                    clearInterval(this.autoPlayTimer);
+                    this.autoPlayTimer = null;
+                }
+                this.isUserInteracting = true;
+            }
+            
+            resumeAutoPlay() {
+                // Resume autoplay after a delay
+                setTimeout(() => {
+                    this.isUserInteracting = false;
+                    if (!this.autoPlayTimer && !this.isDragging) {
+                        this.startAutoPlay();
+                    }
+                }, 3000); // Increased delay to 3 seconds
+            }
+            
+            nextSlideAuto() {
+                if (this.currentSlide < this.totalSlides - 1) {
+                    this.goToSlide(this.currentSlide + 1);
+                } else {
+                    // Loop back to first slide
+                    this.goToSlide(0);
+                }
             }
         }
         
