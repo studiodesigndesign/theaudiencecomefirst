@@ -233,7 +233,7 @@
                 
                 // Sample images - replace with your actual image URLs
                 this.images = [
-                    'assets/TACF01.jpeg',
+                       'assets/TACF01.jpeg',
                     'assets/TACF02.jpeg',
                     'assets/TACF03.jpeg',
                     'assets/TACF04.jpeg',
@@ -317,10 +317,11 @@
             }
             
             setupEventListeners() {
-                // Touch events
-                this.track.addEventListener('touchstart', this.handleTouchStart.bind(this));
-                this.track.addEventListener('touchmove', this.handleTouchMove.bind(this));
-                this.track.addEventListener('touchend', this.handleTouchEnd.bind(this));
+                // Touch events with passive: false for iOS Safari
+                this.track.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+                this.track.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+                this.track.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+                this.track.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false });
                 
                 // Mouse events for desktop
                 this.track.addEventListener('mousedown', this.handleMouseDown.bind(this));
@@ -334,6 +335,13 @@
                 // Prevent context menu on long press
                 this.track.addEventListener('contextmenu', e => e.preventDefault());
                 
+                // Prevent iOS bounce/rubber band effect
+                document.addEventListener('touchmove', (e) => {
+                    if (this.isDragging) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
                 // Hide instructions on first interaction
                 this.track.addEventListener('touchstart', this.hideInstructions.bind(this), { once: true });
                 this.track.addEventListener('mousedown', this.hideInstructions.bind(this), { once: true });
@@ -342,12 +350,14 @@
             handleTouchStart(e) {
                 this.touchStartX = e.touches[0].clientX;
                 this.touchStartY = e.touches[0].clientY;
+                this.touchEndX = this.touchStartX;
+                this.touchEndY = this.touchStartY;
                 this.isDragging = true;
                 this.track.classList.add('dragging');
             }
             
             handleTouchMove(e) {
-                if (!this.isDragging) return;
+                if (!this.isDragging || !e.touches[0]) return;
                 
                 this.touchEndX = e.touches[0].clientX;
                 this.touchEndY = e.touches[0].clientY;
@@ -358,6 +368,7 @@
                 // Only handle horizontal swipes if vertical movement is minimal
                 if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > 10) {
                     e.preventDefault();
+                    e.stopPropagation();
                     this.dragOffset = deltaX;
                     const translateX = -(this.currentSlide * 100) + (deltaX / window.innerWidth * 100);
                     this.track.style.transform = `translateX(${translateX}vw)`;
@@ -366,6 +377,10 @@
             
             handleTouchEnd(e) {
                 if (!this.isDragging) return;
+                
+                // Prevent event bubbling
+                e.preventDefault();
+                e.stopPropagation();
                 
                 this.isDragging = false;
                 this.track.classList.remove('dragging');
@@ -386,7 +401,12 @@
                     this.updateTrackPosition();
                 }
                 
+                // Reset values
                 this.dragOffset = 0;
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+                this.touchEndX = 0;
+                this.touchEndY = 0;
             }
             
             handleMouseDown(e) {
