@@ -16,6 +16,12 @@
             background: #000;
             overflow: hidden;
             touch-action: manipulation;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .gallery-container {
@@ -46,6 +52,16 @@
         .slide-image {
             display: block;
             object-fit: contain;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            user-drag: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none;
         }
 
         /* Mobile portrait mode - fill width, allow vertical scrolling */
@@ -278,7 +294,7 @@
                     'assets/TACF21.jpeg',
                     'assets/TACF22.jpeg',
                     'assets/TACF23.jpeg',
-                    'assets/TACF24.jpeg'
+                    'assets/TACF24.jpeg
                 ];
                 
                 this.init();
@@ -361,6 +377,48 @@
                 
                 // Prevent context menu on long press
                 this.track.addEventListener('contextmenu', e => e.preventDefault());
+                
+                // Disable image saving and right-click protection
+                document.addEventListener('contextmenu', e => e.preventDefault());
+                document.addEventListener('dragstart', e => e.preventDefault());
+                document.addEventListener('selectstart', e => e.preventDefault());
+                
+                // Disable keyboard shortcuts for saving/copying
+                document.addEventListener('keydown', (e) => {
+                    // Disable F12, Ctrl+Shift+I, Ctrl+Shift+C, Ctrl+U, Ctrl+S, Ctrl+A, Ctrl+C
+                    if (e.key === 'F12' || 
+                        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C')) ||
+                        (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S' || 
+                                      e.key === 'a' || e.key === 'A' || e.key === 'c' || e.key === 'C'))) {
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+                
+                // Disable print screen (limited effectiveness)
+                document.addEventListener('keyup', (e) => {
+                    if (e.key === 'PrintScreen') {
+                        navigator.clipboard.writeText('');
+                    }
+                });
+                
+                // Blur content when developer tools might be open
+                let devtools = {open: false, orientation: null};
+                const threshold = 160;
+                setInterval(() => {
+                    if (window.outerHeight - window.innerHeight > threshold || 
+                        window.outerWidth - window.innerWidth > threshold) {
+                        if (!devtools.open) {
+                            devtools.open = true;
+                            document.body.style.filter = 'blur(5px)';
+                        }
+                    } else {
+                        if (devtools.open) {
+                            devtools.open = false;
+                            document.body.style.filter = 'none';
+                        }
+                    }
+                }, 500);
                 
                 // Prevent iOS bounce/rubber band effect
                 document.addEventListener('touchmove', (e) => {
